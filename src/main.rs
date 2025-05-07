@@ -70,7 +70,93 @@ fn parse_info(l: &str) -> ExitStatus {
         panic!("Unhandled input: {l}");
     }
 }
+#[derive(Debug, Clone, PartialEq)]
+struct RFile {
+     
+    fname: String,
 
+} 
+impl RFile {
+    fn new(path: &str) -> Self {
+        RFile {
+            fname: path.to_string(),
+        }
+    }
+
+    fn closure(&self) -> Vec<RFile> {
+
+        let mut all_files = vec![self.clone()];
+
+        if !self.fname.starts_with('/') {
+            return all_files;
+        }
+
+        let mut current_path = Path::new(&self.fname);
+        let mut depth = 0;
+
+        while let Some(parent) = current_path.parent() {
+            if parent == Path::new("") || parent == Path::new("/") {
+                break;
+            }
+
+            all_files.push(RFile {
+                fname: parent.display().to_string(),
+            });
+
+            current_path = parent;
+            depth += 1;
+            if depth > 512 {
+                panic!("Path closure exceeded 512 levels");
+            }
+        }
+
+        all_files
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct WFile {
+     
+    fname: String,
+
+} 
+impl WFile {
+    fn new(path: &str) -> Self {
+        WFile {
+            fname: path.to_string(),
+        }
+    }
+
+    fn closure(&self) -> Vec<WFile> {
+
+        let mut all_files = vec![self.clone()];
+
+        if !self.fname.starts_with('/') {
+            return all_files;
+        }
+
+        let mut current_path = Path::new(&self.fname);
+        let mut depth = 0;
+
+        while let Some(parent) = current_path.parent() {
+            if parent == Path::new("") || parent == Path::new("/") {
+                break;
+            }
+
+            all_files.push(WFile {
+                fname: parent.display().to_string(),
+            });
+
+            current_path = parent;
+            depth += 1;
+            if depth > 512 {
+                panic!("Path closure exceeded 512 levels");
+            }
+        }
+
+        all_files
+    }
+}
 fn main() {
 
 
