@@ -1,7 +1,9 @@
 use phf::phf_set;
 use regex::Regex;
 use std::path::Path;
-
+use std::collections::HashMap;
+use std::fs;
+use std::path::PathBuf;
 
 
 pub static R_FIRST_PATH_SET: phf::Set<&'static str> = phf_set! {
@@ -122,8 +124,10 @@ struct WFile {
 } 
 impl WFile {
     fn new(path: &str) -> Self {
+        let path_buf = fs::canonicalize(path).unwrap_or_else(|_| PathBuf::from(path));
+
         WFile {
-            fname: path.to_string(),
+            fname: path_buf.to_str().unwrap().to_string(),
         }
     }
 
@@ -157,8 +161,65 @@ impl WFile {
         all_files
     }
 }
+
+struct Context {
+    line_dict: HashMap<i32, String>,
+    curdir_dict: HashMap<i32, String>,
+    pid_group_dict: HashMap<i32, i32>,
+    curdir_fallback: String,
+}
+
+impl Context {
+    fn new()->Context {
+        let line_dict = HashMap::new();
+        let curdir_dict = HashMap::new();
+        let pid_group_dict = HashMap::new();
+        let path = String::from("");
+        Context { 
+            line_dict: line_dict, 
+            curdir_dict: curdir_dict, 
+            pid_group_dict: pid_group_dict,
+            curdir_fallback: path 
+        }
+    }
+
+    fn do_clone(&mut self, parent: i32, child: i32){
+        self.pid_group_dict.insert(child, parent);
+    }
+
+    fn set_dir(&mut self, path: & String, pid: Option<i32>){
+        self.curdir_fallback = path.clone();
+        let mut pid = pid.unwrap_or(-1);
+        if pid != -1 && self.pid_group_dict.contains_key(&pid) {
+            pid = self.pid_group_dict.get(&pid).copied().unwrap_or(-1);
+        }
+        if pid != -1 {
+            self.curdir_dict.insert(pid, path.clone());
+        }
+    }
+
+    fn get_dir(&mut self, pid: i32) -> String{
+        let mut pid = pid;
+        if self.pid_group_dict.contains_key(& pid) {
+            pid = self.pid_group_dict.get(& pid).copied().unwrap_or(-1);
+        }
+
+        if !self.pid_group_dict.contains_key(& pid) {
+            let temp = self.curdir_fallback.clone();
+            self.curdir_dict.insert(pid, temp );
+        }
+
+        return self.curdir_dict.get(& pid).cloned().expect("Unexpected error")
+    }
+}
 fn main() {
 
+    let T = WFile::new("./Cargo.toml");
+    let q = T.closure();
 
+    for item in q {
+        let name = item.fname;
+        println!("{name}")
+    }
     println!("Hello, world!");
 }
