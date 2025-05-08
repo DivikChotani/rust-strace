@@ -211,6 +211,30 @@ impl Context {
 
         return self.curdir_dict.get(& pid).cloned().expect("Unexpected error")
     }
+
+    fn push_half_line(& mut self, pid: i32, l: & str){
+        let s = match l.find("<unfinished") {
+            Some(pos) => &l[0..pos],
+            None => ""
+        };
+        let s = s.trim().to_string();
+        self.line_dict.insert(pid, s);
+        
+    }
+
+    fn pop_complete_line(&mut self, pid: i32, l: &str) -> String {
+        let index = match l.find("resumed>") {
+            Some(pos) => pos + "resumed>".len(),
+            None => return "ERROR".to_string()
+        };
+        let line = self.line_dict.get(&pid).expect("not found");
+        let line = line.clone() + &l[index..];
+        self.line_dict.remove(&pid);
+        return line;
+
+
+
+    }
 }
 fn main() {
 
