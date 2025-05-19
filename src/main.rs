@@ -127,10 +127,11 @@ struct WFile {
 } 
 impl WFile {
     fn new(path: &str) -> Self {
-        let path_buf = fs::canonicalize(path).unwrap_or_else(|_| PathBuf::from(path));
-
+        // let path_buf = fs::canonicalize(path).unwrap_or_else(|_| PathBuf::from(path));
+        //might need to revert to this later
         WFile {
-            fname: path_buf.to_str().unwrap().to_string(),
+            // fname: path_buf.to_str().unwrap().to_string(),
+            fname: path.to_string()
         }
     }
 
@@ -317,6 +318,32 @@ fn parse_w_first_path(pid: i32, args: &str, ret: &str, ctx: &mut Context) -> rwF
         rwFile::wfile(WFile::new(&get_path_first_path(pid, args, ctx).to_str().expect("failed to create rfile, parse_r_first_path")))
     }
 }
+
+enum argPos {
+    single(i32),
+    multiple(Vec<i32>,)
+}
+
+//potential error in the python version? fixxed here
+fn get_path_at(pid: i32, positions: argPos, args:  &str, ctx: &mut Context) -> Vec<PathBuf>{
+    let args = split_args(args);
+
+    match positions {
+        argPos::single(i) =>{
+            let m = &args[1];
+            vec![convert_absolute(Path::new(& ctx.get_dir(pid)), &parse_string(m))]
+        }
+        argPos::multiple(l) => {
+            let mut res: Vec<PathBuf> = Vec::new();
+            for arg in &args {
+                res.push(convert_absolute(Path::new(& ctx.get_dir(pid)), &parse_string(arg)));
+            }
+            res
+        }
+    }
+}
+
+
 fn main() {
 
     let T = WFile::new("./Cargo.toml");
