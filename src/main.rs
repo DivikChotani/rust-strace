@@ -343,7 +343,26 @@ fn get_path_at(pid: i32, positions: argPos, args:  &str, ctx: &mut Context) -> V
     }
 }
 
+fn parse_rename(pid: i32, args: &str, ret: &str, ctx: &mut Context) -> Vec<rwFile> {
+    let paths = get_path_at(pid, argPos::multiple(vec![0,1]), args, ctx);
+    vec![
+        rwFile::wfile(WFile::new(&paths[0].to_str()
+            .expect("failed to create rfile, parse_r_first_path"))),
+        rwFile::wfile(WFile::new(&paths[1].to_str()
+            .expect("failed to create rfile, parse_r_first_path"))),
+        ]
+}
 
+fn parse_link(pid: i32, args: &str, ret: &str, ctx: &mut Context) -> Vec<rwFile> {
+    let paths = get_path_at(pid, argPos::multiple(vec![0,1]), args, ctx);
+    vec![
+        rwFile::rfile(RFile::new(&paths[0].to_str()
+            .expect("failed to create rfile, parse_r_first_path"))),
+        rwFile::wfile(WFile::new(&paths[1].to_str()
+            .expect("failed to create rfile, parse_r_first_path"))),
+        ]
+
+}
 fn main() {
 
     let T = WFile::new("./Cargo.toml");
