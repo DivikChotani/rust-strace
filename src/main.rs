@@ -259,6 +259,19 @@ fn parse_string(s: &str) -> String {
     unescape::unescape(s).unwrap_or_else(|| s.to_string())
 }   
 
+fn between(s: &str, d1: &str, d2: &str) -> Option<(usize, usize)> {
+    let a = s.find(d1)?;
+    let b = s.rfind(d2)?;
+    Some((a+ d1.len(), b))
+}
+
+fn is_absolute_path(path: &str) -> bool{
+    !path.is_empty() && path.starts_with('/')
+}
+
+fn is_ret_err(ret: &str) -> bool{
+    ret.trim().starts_with('-')
+}
 fn main() {
 
     let T = WFile::new("./Cargo.toml");
