@@ -1,9 +1,11 @@
 use phf::phf_set;
-use regex::Regex;
+use regex::{bytes, Regex};
+use std::io::Bytes;
 use std::path::Path;
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
+use unescape;
 
 
 pub static R_FIRST_PATH_SET: phf::Set<&'static str> = phf_set! {
@@ -236,6 +238,27 @@ impl Context {
 
     }
 }
+
+fn parse_string(s: &str) -> String {
+    let mut s = s.trim();
+
+    if s.eq("NULL") {
+       return String::new()
+    }
+
+    if s.ends_with("...") {
+        let l = s.len()-"...".len();
+        s = &s[..l];
+    }
+    if !s.starts_with('"') || !s.ends_with('"') {
+        panic!("Unexpected behaviour");
+    }
+
+    s = &s[1..s.len()-1];
+
+    unescape::unescape(s).unwrap_or_else(|| s.to_string())
+}   
+
 fn main() {
 
     let T = WFile::new("./Cargo.toml");
