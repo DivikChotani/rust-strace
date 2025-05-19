@@ -56,6 +56,7 @@ fn take_first_args(s: &str) -> (&str, &str) {
     (first, rest)
 }
 
+
 #[derive(Debug, Clone, PartialEq)]
 struct ExitStatus {
     exitcode: i32,
@@ -164,6 +165,10 @@ impl WFile {
     }
 }
 
+enum rwFile {
+    rfile(RFile),
+    wfile(WFile)
+}
 struct Context {
     line_dict: HashMap<i32, String>,
     curdir_dict: HashMap<i32, String>,
@@ -292,6 +297,25 @@ fn convert_absolute(cur_dir: &Path, path: &str) -> PathBuf {
         cur_dir.join(p)
     }
 
+}
+
+fn get_path_first_path(pid: i32, args: &str, ctx: &mut Context) -> PathBuf{
+    let a = parse_string(&split_args(args)[1]);
+
+    convert_absolute(Path::new(& ctx.get_dir(pid)), &a)
+}
+
+fn parse_r_first_path(pid: i32, args: &str, ret: &str, ctx: &mut Context) -> rwFile {
+    rwFile::rfile(RFile::new(&get_path_first_path(pid, args, ctx).to_str().expect("failed to create rfile, parse_r_first_path")))
+}
+
+fn parse_w_first_path(pid: i32, args: &str, ret: &str, ctx: &mut Context) -> rwFile {
+    if is_ret_err(ret) {
+        rwFile::rfile(RFile::new(&get_path_first_path(pid, args, ctx).to_str().expect("failed to create rfile, parse_r_first_path")))
+    }
+    else {
+        rwFile::wfile(WFile::new(&get_path_first_path(pid, args, ctx).to_str().expect("failed to create rfile, parse_r_first_path")))
+    }
 }
 fn main() {
 
