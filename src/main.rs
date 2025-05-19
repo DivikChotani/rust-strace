@@ -3,7 +3,7 @@ use regex::{bytes, Regex};
 use std::io::Bytes;
 use std::path::Path;
 use std::collections::HashMap;
-use std::fs;
+use std::{fs, os};
 use std::path::PathBuf;
 use unescape;
 
@@ -271,6 +271,27 @@ fn is_absolute_path(path: &str) -> bool{
 
 fn is_ret_err(ret: &str) -> bool{
     ret.trim().starts_with('-')
+}
+
+fn get_ret_file_path(ret :&str) -> String{
+    if !is_ret_err(ret) {
+        panic!("Unexpected behaviour passed into function get_ret_file_path")
+    };
+    let ret = ret.trim();
+    let start = ret.find("<").unwrap() +1;
+    let end = ret.rfind(">").unwrap() +1;
+
+    (&ret[start..end]).to_string()
+}
+
+fn convert_absolute(cur_dir: &Path, path: &str) -> PathBuf {
+    let p = Path::new(path);
+    if is_absolute_path(path){
+        p.to_path_buf()
+    } else {
+        cur_dir.join(p)
+    }
+
 }
 fn main() {
 
