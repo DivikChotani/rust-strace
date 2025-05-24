@@ -195,14 +195,14 @@ impl Context {
         self.pid_group_dict.insert(child, parent);
     }
 
-    fn set_dir(&mut self, path: & String, pid: Option<i32>){
-        self.curdir_fallback = path.clone();
+    fn set_dir(&mut self, path: & str, pid: Option<i32>){
+        self.curdir_fallback = path.to_string().clone();
         let mut pid = pid.unwrap_or(-1);
         if pid != -1 && self.pid_group_dict.contains_key(&pid) {
             pid = self.pid_group_dict.get(&pid).copied().unwrap_or(-1);
         }
         if pid != -1 {
-            self.curdir_dict.insert(pid, path.clone());
+            self.curdir_dict.insert(pid, path.to_string().clone());
         }
     }
 
@@ -362,6 +362,37 @@ fn parse_link(pid: i32, args: &str, ret: &str, ctx: &mut Context) -> Vec<rwFile>
             .expect("failed to create rfile, parse_r_first_path"))),
         ]
 
+}
+
+fn parse_chdir(pid: i32, args: &str, ret: &str, ctx: &mut Context) -> rwFile {
+    let new_path = get_path_first_path(pid, args, ctx);
+    if !is_ret_err(ret) {
+        ctx.set_dir((new_path.to_str().expect("failed to set to path")), Some(pid));
+    }
+
+    rwFile::rfile(RFile::new(&new_path.to_str().expect("failed in creating file in parse chdir")))
+
+}
+
+fn handle_open_flag(flags: &str) -> char{
+    if flags.contains("O_RDONLY") {
+        return 'r'
+    }
+    'w'
+}
+
+fn handle_open_common(total_path: PathBuf, flags: &str, ret :&str) -> Vec<rwFile>{
+    let file_path =total_path.to_str().expect("error in handle open common returning rfile");
+    if is_ret_err(ret){
+        vec![rwFile::rfile(RFile::new(file_path))]
+    }
+    else if handle_open_flag(flags) == 'r' {
+        vec![rwFile::rfile(RFile::new(file_path)), rwFile::rfile(RFile::new(&get_ret_file_path(ret)))]
+    }
+    else {
+        vec![rwFile::wfile(WFile::new(file_path)), rwFile::wfile(WFile::new(&get_ret_file_path(ret)))]
+
+    }
 }
 fn main() {
 
