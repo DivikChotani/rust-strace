@@ -517,6 +517,24 @@ fn parse_clone(pid:i32, args:  &str, ret :&str, ctx: &mut Context) {
         ctx.do_clone(pid, child);
     }
 }
+
+
+fn parse_symlinkat(pid:i32, args:  &str, ret :&str) -> rwFile {
+    let t = take_first_args(args);
+    parse_w_fd_path(t.0, t.1)
+}
+
+fn parse_symlink(pid:i32, args:  &str, ret :&str, ctx: &mut Context) -> rwFile {
+    let t = take_first_args(args);
+    parse_w_first_path(pid, t.1, ret, ctx)
+}
+
+fn parse_inotify_add_watch(pid:i32, args:  &str, ret :&str, ctx: &mut Context) -> rwFile {
+    let (_, rest) = take_first_args(args);
+    parse_r_first_path(pid, rest, ret, ctx)
+}
+
+
 fn main() {
 
     let T = WFile::new("./Cargo.toml");
