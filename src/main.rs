@@ -475,6 +475,48 @@ fn parse_renameat(pid:i32, args:  &str, ret :&str, ctx: &mut Context) -> Vec<rwF
         rwFile::wfile(WFile::new(&path_b.to_str().expect("could not turn path B to str in parse rename at")))]
 }
 
+fn parse_r_fd_path(args:  &str, ret :&str) -> rwFile {
+    rwFile::rfile(RFile::new(& get_path_from_fd_path(args).to_str().expect("failed in parse r fd path")))
+}
+
+fn parse_w_fd_path(args:  &str, ret :&str) -> rwFile {
+    if is_ret_err(ret) {
+        rwFile::rfile(RFile::new(& get_path_from_fd_path(args).to_str().expect("failed in parse r fd path")))
+    } else {
+        rwFile::wfile(WFile::new(& get_path_from_fd_path(args).to_str().expect("failed in parse r fd path")))
+    }
+}
+
+fn has_clone_fs(flags: &str) -> bool {
+    if flags.contains("CLONE_FS"){
+        true
+    } else{
+        false
+    }
+}
+
+fn parse_clone(pid:i32, args:  &str, ret :&str, ctx: &mut Context) {
+    let child = match ret.trim().parse() {
+        Ok(num) => num,
+        Err(_) => -1
+    };
+    if child < 0 {
+        return
+    }
+    let arg_list: Vec<String> = split_args(args)
+        .into_iter()
+        .map(|x:String| x.trim().to_string())
+        .collect();
+
+    let flags: String = arg_list
+        .into_iter()
+        .find(|x| x.starts_with("flags="))
+        .map(|x| x["flags=".len()..].to_string()).expect("failed in finding flags in arg list");
+
+    if has_clone_fs(&flags) {
+        ctx.do_clone(pid, child);
+    }
+}
 fn main() {
 
     let T = WFile::new("./Cargo.toml");
