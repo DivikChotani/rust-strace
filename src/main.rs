@@ -299,23 +299,45 @@ fn convert_absolute(cur_dir: &Path, path: &str) -> PathBuf {
     }
 
 }
+// fn get_path_first_path(pid: i32, args: &str, ctx: &mut Context) -> PathBuf{
+//     let a = parse_string(&split_args(args)[1]);
 
-fn get_path_first_path(pid: i32, args: &str, ctx: &mut Context) -> PathBuf{
-    let a = parse_string(&split_args(args)[1]);
+//     convert_absolute(Path::new(& ctx.get_dir(pid)), &a)
+// }
 
-    convert_absolute(Path::new(& ctx.get_dir(pid)), &a)
+fn get_path_first_path(pid: i32, args: &str, ctx: &mut Context) -> Result<PathBuf, &'static str> {
+    let a = parse_string(&split_args(args)[0]); 
+
+    let dir = ctx.get_dir(pid);
+    let abs_path = convert_absolute(Path::new(&dir), &a);
+
+    if abs_path.as_os_str().is_empty() {
+        Err("path resolution failed")
+    } else {
+        Ok(abs_path)
+    }
 }
 
+
 fn parse_r_first_path(pid: i32, args: &str, ret: &str, ctx: &mut Context) -> rwFile {
-    rwFile::rfile(RFile::new(&get_path_first_path(pid, args, ctx).to_str().expect("failed to create rfile, parse_r_first_path")))
+    rwFile::rfile(RFile::new(&get_path_first_path(pid, args, ctx)
+        .unwrap()
+        .to_str()
+        .expect("failed to create rfile, parse_r_first_path")))
 }
 
 fn parse_w_first_path(pid: i32, args: &str, ret: &str, ctx: &mut Context) -> rwFile {
     if is_ret_err(ret) {
-        rwFile::rfile(RFile::new(&get_path_first_path(pid, args, ctx).to_str().expect("failed to create rfile, parse_r_first_path")))
+        rwFile::rfile(RFile::new(&get_path_first_path(pid, args, ctx)
+            .unwrap()
+            .to_str()
+            .expect("failed to create rfile, parse_r_first_path")))
     }
     else {
-        rwFile::wfile(WFile::new(&get_path_first_path(pid, args, ctx).to_str().expect("failed to create rfile, parse_r_first_path")))
+        rwFile::wfile(WFile::new(&get_path_first_path(pid, args, ctx)
+            .unwrap()
+            .to_str()
+            .expect("failed to create rfile, parse_r_first_path")))
     }
 }
 
@@ -365,7 +387,7 @@ fn parse_link(pid: i32, args: &str, ret: &str, ctx: &mut Context) -> Vec<rwFile>
 }
 
 fn parse_chdir(pid: i32, args: &str, ret: &str, ctx: &mut Context) -> rwFile {
-    let new_path = get_path_first_path(pid, args, ctx);
+    let new_path = get_path_first_path(pid, args, ctx).expect("failed parse chdir in get path first path");
     if !is_ret_err(ret) {
         ctx.set_dir((new_path.to_str().expect("failed to set to path")), Some(pid));
     }
@@ -412,7 +434,45 @@ fn parse_openat(args:  &str, ret :&str) -> Option< Vec<rwFile>>{
         let pwd = &dfd[begin..end];
         Path::new(pwd).join(&path)
     };
-    return Some(handle_open_common(total_path, flags, ret));
+    Some(handle_open_common(total_path, flags, ret))
+}
+
+fn parse_open(pid:i32, args:  &str, ret :&str, ctx: &mut Context) -> Option<Vec<rwFile>>{
+    let total_path = match get_path_first_path(pid, args, ctx) {
+        Ok(path) => path,
+        Err(_) => return None
+    };
+
+    let flags = &split_args(&args)[1];
+
+    Some(handle_open_common(total_path, flags, ret))
+
+}
+
+fn get_path_from_fd_path(args:  &str) -> PathBuf{
+    let t = &split_args(args);
+
+    let a0 = &t[0];
+    let a1 = &t[1];
+
+    let a1 = parse_string(a1);
+    if a1.len() != 0 && a1.starts_with('/') {
+        Path::new(&a1).to_path_buf()
+    } else {
+        let begin = a0.find("<").unwrap() +1;
+        let end = (&a0[begin..]).find(">").unwrap() + begin;
+        let a0 = &a0[begin..end];
+        Path::new(&a1).join(&a0)
+    }
+
+}
+
+fn parse_renameat(pid:i32, args:  &str, ret :&str, ctx: &mut Context) -> Vec<rwFile> {
+    let path_a = get_path_from_fd_path(args);
+    let second_set = &(split_args(args)[2..].join(","));
+    let path_b = get_path_from_fd_path(second_set);
+    vec![rwFile::wfile(WFile::new(&path_a.to_str().expect("could not turn path A to str in parse rename at"))), 
+        rwFile::wfile(WFile::new(&path_b.to_str().expect("could not turn path B to str in parse rename at")))]
 }
 
 fn main() {
