@@ -394,6 +394,27 @@ fn handle_open_common(total_path: PathBuf, flags: &str, ret :&str) -> Vec<rwFile
 
     }
 }
+
+fn parse_openat(args:  &str, ret :&str) -> Option< Vec<rwFile>>{
+    let args = split_args(args);
+    let path = parse_string(&args[1]);
+    let dfd = &args[1];
+    let p = Path::new(&path);
+    let flags = &args[2];
+    if path.len() == 0{
+        return None
+    };
+    let total_path = if is_absolute_path(&path) {
+        Path::new(&path.clone()).to_path_buf()
+    } else {
+        let begin = dfd.find("<").unwrap() +1;
+        let end = (&dfd[begin..]).find(">").unwrap() + begin;
+        let pwd = &dfd[begin..end];
+        Path::new(pwd).join(&path)
+    };
+    return Some(handle_open_common(total_path, flags, ret));
+}
+
 fn main() {
 
     let T = WFile::new("./Cargo.toml");
