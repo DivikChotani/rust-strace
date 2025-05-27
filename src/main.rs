@@ -7,6 +7,9 @@ use std::collections::{HashMap, HashSet};
 use std::{fs, os};
 use std::path::PathBuf;
 use unescape;
+use std::env;
+use std::fs::File;
+use std::io::{self, BufRead};
 
 
 pub static R_FIRST_PATH_SET: phf::Set<&'static str> = phf_set! {
@@ -166,7 +169,7 @@ impl WFile {
         all_files
     }
 }
-
+#[derive(Debug, Clone, PartialEq)]
 enum rwFile {
     rfile(RFile),
     wfile(WFile)
@@ -697,15 +700,29 @@ fn parse_and_gather_cmd_rw_sets(trace_object: &Vec<String>, ctx: &mut Context) -
 
     return (read_set, write_set)
 }
+fn process_file(fname: &str, ctx: &mut Context) -> std::io::Result<()> {
+    let file = File::open(fname)?;
+    let reader = io::BufReader::new(file);
 
+    for (i, line_result) in reader.lines().enumerate() {
+        let line = line_result?; // handle possible I/O error
+        if let parse_line_ret::files(record) = parse_line(&line, ctx){
+            println!("{:?}", record); 
+        }
+    }
+
+    Ok(())
+}
 fn main() {
-
-    let T = WFile::new("./Cargo.toml");
-    let q = T.closure();
-
-    for item in q {
-        let name = item.fname;
-        println!("{name}")
+    let mut ctx = Context::new();
+    ctx.set_dir(env::current_dir().unwrap().to_str().unwrap(), None);
+    let args: Vec<String> = env::args().collect();
+    if args.len() < 2 {
+        eprintln!("Usage: {} <filename>", args[0]);
+        std::process::exit(1);
     };
-    println!("Hello, world!");
+    let fname = &args[1];
+    if let Err(e) = process_file(fname, &mut ctx) {
+        eprintln!("Error: {}", e);
+    }
 }
