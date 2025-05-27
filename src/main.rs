@@ -1,8 +1,9 @@
 use phf::phf_set;
 use regex::{bytes, Regex};
+use std::fs::FileTimes;
 use std::io::Bytes;
 use std::path::Path;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::{fs, os};
 use std::path::PathBuf;
 use unescape;
@@ -640,6 +641,61 @@ fn parse_exit_code(trace_object: &Vec<String>) -> Option<i32>{
         }
     };
     panic!("No exitcode in parse_exit_code");
+}
+
+fn parse_and_gather_cmd_rw_sets(trace_object: &Vec<String>, ctx: &mut Context) -> (HashSet<String>, HashSet<String>) {
+    let mut read_set: HashSet<String> = HashSet::new();
+    let mut write_set: HashSet<String> = HashSet::new();
+
+    let mut records: Vec<rwFile> = Vec::new();
+
+    for l in trace_object {
+        if let parse_line_ret::files(files) = parse_line(l, ctx) {
+            for f in files {
+                let keep = match &f {
+                    rwFile::rfile(r) => !r.fname.starts_with("/tmp/pash_spec") && !r.fname.starts_with("/dev"),
+                    rwFile::wfile(w) => !w.fname.starts_with("/tmp/pash_spec") && !w.fname.starts_with("/dev"),
+                };
+                if keep {
+                    records.push(f);
+                }
+            }
+        }
+    }
+
+    let mut all_records: Vec<rwFile> = Vec::new();
+
+    for record in records {
+        match record {
+            rwFile::rfile(rf) => {
+                for r in rf.closure() {
+                    all_records.push(rwFile::rfile(r));
+                }
+            },
+            rwFile::wfile(wf) => {
+                for r in wf.closure() {
+                    all_records.push(rwFile::wfile(r));
+                }
+            },
+        }
+    }
+
+    for record in all_records {
+        match record {
+            rwFile::rfile(rf) => {
+                if rf.fname != "/dev/tty" {
+                    read_set.insert(rf.fname);
+                }
+            },
+            rwFile::wfile(wf) => {
+                if wf.fname != "/dev/tty" {
+                    write_set.insert(wf.fname);
+                }
+            },
+        }
+    };
+
+    return (read_set, write_set)
 }
 
 fn main() {
