@@ -534,6 +534,27 @@ fn parse_inotify_add_watch(pid:i32, args:  &str, ret :&str, ctx: &mut Context) -
     parse_r_first_path(pid, rest, ret, ctx)
 }
 
+fn parse_syscall(pid: i32, syscall: &str, args:  &str, ret :&str, ctx: &mut Context)-> Result<Vec<rwFile>,&'static str>{
+    let t: Result<Vec<rwFile>,&str> = match syscall {
+        s if R_FIRST_PATH_SET.contains(s) => Ok(vec![parse_r_first_path(pid, args, ret, ctx)]),
+        s if W_FIRST_PATH_SET.contains(s) => Ok(vec![parse_w_first_path(pid, args, ret, ctx)]),
+        "openat" => Ok(parse_openat(args, ret).expect("failed openat syscall in parse_syscall")),
+        "chdir" => Ok(vec![parse_chdir(pid, args, ret, ctx)]),
+        "open" => Ok(parse_open(pid, args, ret, ctx).expect("failed open syscall in parse_syscall")),
+        s if R_FD_PATH_SET.contains(s) => Ok(vec![parse_r_fd_path(args, ret)]),
+        s if W_FD_PATH_SET.contains(s) => Ok(vec![parse_w_fd_path(args, ret)]),
+        "rename" => Ok(parse_rename(pid, args, ret, ctx)),
+        "renameat" | "renameat2" => Ok(parse_renameat(pid, args, ret, ctx)),
+        "symlinkat" => Ok(vec![parse_symlinkat(pid, args, ret)]),
+        "symlink" | "link" => Ok(vec![parse_symlink(pid, args, ret, ctx)]),
+        "clone" => Err("Parse clone returns nothing"),
+        "inotify_add_watch" => Ok(vec![parse_inotify_add_watch(pid, args, ret, ctx)]),
+        s if IGNORE_SET.contains(s) => return Err("syscall in ignore set"),
+        _ => Err(("Unclassified syscall: {syscall}")),
+    };
+    t
+}
+
 
 fn main() {
 
@@ -543,6 +564,6 @@ fn main() {
     for item in q {
         let name = item.fname;
         println!("{name}")
-    }
+    };
     println!("Hello, world!");
 }
