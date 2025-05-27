@@ -624,6 +624,24 @@ fn parse_line(l: &str, ctx: &mut Context) -> parse_line_ret {
 
 }
 
+fn parse_exit_code(trace_object: &Vec<String>) -> Option<i32>{
+    if trace_object.len() == 0 || trace_object[0].is_empty() {
+        return None
+    };
+
+    let l = &trace_object[0];
+    let (first_pid, _) = strip_pid(l);
+    for l in trace_object {
+        let (pid, tmpl) = strip_pid(l);
+        let (is_info, info) = handle_info(l);
+        if is_info && pid == first_pid && info.is_some() {
+            let temp = info.unwrap();
+            return Some(temp.exitcode);
+        }
+    };
+    panic!("No exitcode in parse_exit_code");
+}
+
 fn main() {
 
     let T = WFile::new("./Cargo.toml");
