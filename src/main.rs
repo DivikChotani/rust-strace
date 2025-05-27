@@ -555,6 +555,27 @@ fn parse_syscall(pid: i32, syscall: &str, args:  &str, ret :&str, ctx: &mut Cont
     t
 }
 
+fn strip_pid(l: &str) -> (i32, String){
+    if l.chars().next().unwrap().is_ascii_digit(){
+        let pair: Vec<& str> = l.split(" ").collect();
+        return (pair[0].parse().unwrap(), pair[1..].concat())
+
+    }
+    panic!("expected pid at strip pid")
+}
+
+fn handle_info(l: &str) -> (bool, Option<ExitStatus>) {
+    if l.ends_with("+++") {
+        (true, Some(parse_info(l)))
+    }
+    else if l.ends_with("---") {
+        (true, None)
+    }
+    else {
+        (false, None)
+    }
+
+}
 
 fn main() {
 
