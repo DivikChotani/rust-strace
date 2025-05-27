@@ -550,7 +550,7 @@ fn parse_syscall(pid: i32, syscall: &str, args:  &str, ret :&str, ctx: &mut Cont
         "clone" => Err("Parse clone returns nothing"),
         "inotify_add_watch" => Ok(vec![parse_inotify_add_watch(pid, args, ret, ctx)]),
         s if IGNORE_SET.contains(s) => return Err("syscall in ignore set"),
-        _ => Err(("Unclassified syscall: {syscall}")),
+        _ => Err("Unclassified syscall: {syscall}"),
     };
     t
 }
@@ -574,6 +574,53 @@ fn handle_info(l: &str) -> (bool, Option<ExitStatus>) {
     else {
         (false, None)
     }
+
+}
+enum parse_line_ret {
+    None,
+    info(Option<ExitStatus>),
+    files(Vec<rwFile>),
+}
+fn parse_line(l: &str, ctx: &mut Context) -> parse_line_ret {
+    if l.len() == 0 {
+        return parse_line_ret::None
+    };
+    let (pid, l) = strip_pid(l);
+    if l.len() == 0 {
+        return parse_line_ret::None
+    }
+    let (is_info, info) = handle_info(&l);
+    if is_info {
+        return parse_line_ret::info(info)
+    };
+
+    if l.contains("<unfinished") {
+        ctx.push_half_line(pid, &l);
+        return parse_line_ret::None
+    }
+    let l =  if l.contains("resumed>") {
+        ctx.pop_complete_line(pid, &l)
+    } else {
+        "".to_string()
+    };
+
+    let (lparen, equals) = match (l.find('('), l.rfind('=')) {
+         (Some(l), Some(e)) => (l, e),
+    _ => {
+        return parse_line_ret::None;
+        }
+    };
+
+    let Some(rparen) = (&l[lparen..]).rfind(')') else {
+        return parse_line_ret::None;
+    };
+
+    let syscall = &l[..rparen];
+    let ret = &l[equals+1..];
+    let args = &l[lparen+1..rparen];
+
+    return parse_line_ret::files(parse_syscall(pid, syscall, args, ret, ctx)
+                .expect("failed parse_syscall fn call from parse_line"))
 
 }
 
